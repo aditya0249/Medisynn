@@ -1,0 +1,163 @@
+/* 🌫️ Smooth fade-in for forms and content transitions */
+@keyframes fadeInSmooth {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.animate-fade-in-smooth {
+  animation: fadeInSmooth 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* ⚡ Smooth slide-in animation for switching tabs */
+@keyframes slideInSmooth {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-smooth {
+  animation: slideInSmooth 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* 🧩 Disable ALL Shadcn UI active tab highlights (FINAL guaranteed fix) */
+[data-state="active"]::after,
+button[data-state="active"]::after,
+.tabs-trigger[data-state="active"]::after,
+[data-state="active"] > div::after,
+[data-state="active"] > button::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* 🚫 Also remove background highlight from active tabs */
+[data-state="active"],
+button[data-state="active"],
+.tabs-trigger[data-state="active"] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ✨ Smooth text color transition for tab triggers */
+.tabs-trigger {
+  transition: color 0.4s ease, background 0.4s ease;
+}
+
+/* 🧠 Subtle glow/hover lift for gradient buttons */
+.gradient-hero:hover,
+.gradient-success:hover {
+  transform: translateY(-1px);
+  transition: all 0.25s ease;
+}
+
+/* 🌟 Bonus: smooth opacity + movement for custom slider pill */
+.tabs-slider {
+  transition: opacity 0.4s ease-in-out, transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+  will-change: transform, opacity;
+}
+
+/* 🩵 Optional subtle fade pop when active tab changes */
+@keyframes tabSwitchPop {
+  0% {
+    transform: scale(0.98);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.tab-pop {
+  animation: tabSwitchPop 0.35s ease-in-out;
+}
+/* 🌈 Smooth transition for Forgot Password and Back to Sign In */
+@keyframes fadeSlideForward {
+  0% {
+    opacity: 0;
+    transform: translateX(40px) scale(0.98);
+    filter: blur(3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes fadeSlideBackward {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-40px) scale(0.98);
+    filter: blur(3px);
+  }
+}
+
+.animate-fade-slide-forward {
+  animation: fadeSlideForward 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+.animate-fade-slide-backward {
+  animation: fadeSlideBackward 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+.dots::after {
+  content: "";
+  animation: typingDots 1.4s steps(4, end) infinite;
+}
+
+@keyframes typingDots {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%  { content: "..."; }
+  100% { content: ""; }
+}
+button:disabled {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+button:disabled::after {
+  display: none !important;
+}
+@keyframes slideInOut {
+  0% {
+    transform: translateY(-80px);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-80px);
+    opacity: 0;
+  }
+}
+
+.animate-slideInOut {
+  animation: slideInOut 3.5s ease-in-out forwards;
+}
