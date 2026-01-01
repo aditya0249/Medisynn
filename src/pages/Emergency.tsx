@@ -88,8 +88,10 @@ const [showSmsModal, setShowSmsModal] = useState(false);
           </div>
 
           {/* Location */}
-          <Card className="shadow-medium mb-8 animate-fade-in">
-         <CardHeader className="gradient-hero text-primary-foreground mb-4 py-4 pl-3">
+          <Card className="shadow-medium mb-8 animate-fade-in  bg-white
+    border-2 border-gray-300">
+        <CardHeader className="-mx-0.5 -mt-0.5 rounded-t-xl gradient-hero text-primary-foreground py-4 pl-4">
+
 
 
 
@@ -177,8 +179,9 @@ const [showSmsModal, setShowSmsModal] = useState(false);
           </Card>
 
           {/* Emergency Contacts */}
-          <Card className="shadow-medium animate-fade-in mb-8">
- <CardHeader className="gradient-success text-secondary-foreground mb-4 py-4 pl-3">
+          <Card className="shadow-medium animate-fade-in mb-8 bg-white
+    border-2 border-gray-300">
+ <CardHeader className="-mx-0.5 -mt-0.5 gradient-success text-secondary-foreground mb-4 py-4 pl-3">
 
 
 

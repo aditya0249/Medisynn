@@ -12,13 +12,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import GlobalReminderListener from "@/components/GlobalReminderListener";
+
 import { toast } from "sonner";
 
 const API = "http://localhost:5000";
 
 const Navigation = () => {
   const [loadingProfile, setLoadingProfile] = useState(true);
-
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+const [loggingOut, setLoggingOut] = useState(false);
+const [dots, setDots] = useState("");
   const [oldImage, setOldImage] = useState(null);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -36,46 +40,109 @@ const Navigation = () => {
   const location = useLocation();
   
   const navigate = useNavigate();
+useEffect(() => {
+  const checkLogin = () => {
+    const email = localStorage.getItem("userEmail");
+
+    if (email) {
+      setIsLoggedIn(true);
+      setUserEmail(email);
+      loadProfileFromBackend();
+    } else {
+      setIsLoggedIn(false);
+      setLoadingProfile(false);
+    }
+  };
+
+  checkLogin(); // initial load
+
+  window.addEventListener("storage", checkLogin);
+
+  return () => {
+    window.removeEventListener("storage", checkLogin);
+  };
+}, []);
+useEffect(() => {
+  if (!loggingOut) return;
+
+  const interval = setInterval(() => {
+    setDots((prev) => (prev.length === 3 ? "" : prev + "."));
+  }, 400);
+
+  return () => clearInterval(interval);
+}, [loggingOut]);
+
+useEffect(() => {
+  if (!loggingOut) return;
+
+  const timer = setTimeout(() => {
+    handleLogout();
+    setIsOpen(false);
+  }, 2700);
+
+  return () => clearTimeout(timer);
+}, [loggingOut]);
+
+useEffect(() => {
+  const handleLogin = () => {
+    const email = localStorage.getItem("userEmail");
+
+    if (email) {
+      setUserEmail(email);
+      loadProfileFromBackend(); // 🔥 profile reload
+    }
+  };
+
+  window.addEventListener("user-logged-in", handleLogin);
+
+  return () => {
+    window.removeEventListener("user-logged-in", handleLogin);
+  };
+}, []);
+
+
+
 
   // -------------------------------------------
   // 1️⃣ FETCH PROFILE FROM BACKEND ALWAYS (NO LOCALSTORAGE IMAGE)
   // -------------------------------------------
   const loadProfileFromBackend = async () => {
-    const storedEmail = localStorage.getItem("userEmail");
-    if (!storedEmail) return;
+  const storedEmail = localStorage.getItem("userEmail");
 
-    try {
-      const res = await fetch(`${API}/profile`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: storedEmail }),
-      });
+  // 🔥 IMPORTANT: no email → stop loading
+  if (!storedEmail) {
+    setLoadingProfile(false);
+    return;
+  }
 
-      const data = await res.json();
-      if (!res.ok) return;
+  try {
+    const res = await fetch(`${API}/api/profile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: storedEmail }),
+    });
 
-      setUserName(data.full_name);
-      setUserEmail(data.email);
+    if (!res.ok) return;
 
-      // backend gives FULL URL — extract filename
-      if (data.profile_image) {
-        const filename = data.profile_image.split("/uploads/")[1];
-        setUserImage(filename);
-      } else {
-        setUserImage(null);
-      }
+    const data = await res.json();
 
-      setForm({ full_name: data.full_name, password: "" });
-    } catch (e) {
-      console.log("Profile load error:", e);
+    setUserName(data.full_name);
+    setUserEmail(data.email);
+
+    if (data.profile_image) {
+      const filename = data.profile_image.split("/uploads/")[1];
+      setUserImage(filename);
+    } else {
+      setUserImage(null);
     }
-      setLoadingProfile(false);
 
-  };
-
-  useEffect(() => {
-    loadProfileFromBackend();
-  }, [location]);
+    setForm({ full_name: data.full_name, password: "" });
+  } catch (e) {
+    console.log("Profile load error:", e);
+  } finally {
+    setLoadingProfile(false); // 🔥 MUST BE HERE
+  }
+};
 
   // -------------------------------------------
   // 2️⃣ CLOSE DROPDOWN ON OUTSIDE CLICK
@@ -101,7 +168,7 @@ const Navigation = () => {
     fd.append("image", file);
     fd.append("email", userEmail);
 
-    const res = await fetch(`${API}/upload-profile-image`, {
+    const res = await fetch(`${API}/api/upload-profile-image`, {
       method: "POST",
       body: fd,
     });
@@ -121,7 +188,7 @@ const Navigation = () => {
   const handleDeleteImage = async () => {
     if (!userImage) return;
 
-    const res = await fetch(`${API}/delete-profile-image`, {
+    const res = await fetch(`${API}/api/delete-profile-image`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -153,7 +220,7 @@ const Navigation = () => {
 
     setLoading(true);
 
-    const res = await fetch(`${API}/update-profile`, {
+    const res = await fetch(`${API}/api/update-profile`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -182,24 +249,15 @@ const Navigation = () => {
   // 6️⃣ LOGOUT
   // -------------------------------------------
   const handleLogout = () => {
-  // Clear storage
   localStorage.removeItem("userEmail");
   localStorage.removeItem("userName");
   localStorage.removeItem("userImage");
 
-  // Reset React states so Navigation UI updates immediately
   setUserName("");
   setUserEmail("");
   setUserImage(null);
 
-  // Force re-render by navigating to a temp route
-  navigate("/logout-temp", { replace: true });
-
-  // Immediately return back to home
-  setTimeout(() => {
-    navigate("/", { replace: true });
-  }, 0);
-
+  navigate("/", { replace: true });
   toast.success("Logged out!");
 };
 
@@ -219,7 +277,7 @@ const Navigation = () => {
 
   const navLinks = [
   { name: "Home", path: "/" },
-  { name: "AI Health Check", path: "/health-checker" },
+  { name: "Health Check", path: "/health-checker" },
   { name: "Find Doctors", path: "/doctors" },
   { name: "Mental Health", path: "/mental-health" },
   { name: "Emergency", path: "/emergency" },
@@ -233,11 +291,13 @@ const Navigation = () => {
 
   return (
     <>
+     <GlobalReminderListener />
       {/* ================= Navbar ================= */}
       {/* 🌟 MOBILE MENU (Android / Mobile) */}
+{/* 🌟 MOBILE MENU */}
 {isOpen && (
   <div className="md:hidden fixed top-16 left-0 w-full bg-white shadow-lg z-[9999] p-4 space-y-3">
-    
+
     {navLinks.map((link) => (
       <Link
         key={link.path}
@@ -275,17 +335,20 @@ const Navigation = () => {
         <button
           onClick={() => {
             setIsOpen(false);
-            handleLogout();
+            setLoggingOut(true);
           }}
-          className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg mt-2"
+          disabled={loggingOut}
+          className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 text-sm w-full disabled:opacity-50"
         >
-          Logout
+          <LogOut className="w-4 h-4 text-red-500" />
+          {loggingOut ? `Signing out${dots}` : "Sign out"}
         </button>
       </div>
     )}
 
   </div>
 )}
+
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border shadow-soft">
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -320,20 +383,23 @@ const Navigation = () => {
 
 
       {/* 🔹 Profile / Login Section (Right Side) */}
-<div className="hidden md:flex items-center gap-3 relative" ref={dropdownRef}>
+<div className="flex items-center gap-3 relative" ref={dropdownRef}>
 
   {/* 🔥 1) If on AUTH → hide everything */}
   {location.pathname === "/auth" ? null : (
     <>
       {/* 🔥 2) If NOT logged in → show Login Button immediately */}
-      {!userName && (
-        <Button
-          onClick={() => navigate("/auth")}
-          className="gradient-hero text-primary-foreground shadow-soft hover:shadow-glow transition-smooth"
-        >
-          Login / Sign Up
-        </Button>
-      )}
+   {!loadingProfile && userName === "" && (
+  <Button
+    onClick={() => navigate("/auth")}
+    className="hidden md:inline-flex gradient-hero text-primary-foreground shadow-soft hover:shadow-glow transition-smooth"
+  >
+    Login / Sign Up
+  </Button>
+)}
+
+
+
 
       {/* 🔥 3) If logged in → wait until loading finishes */}
       {userName && !loadingProfile && (
@@ -380,12 +446,17 @@ const Navigation = () => {
                 <Edit3 className="w-4 h-4 text-gray-500" /> Edit Profile
               </button>
 
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-sm text-red-600 w-full"
-              >
-                <LogOut className="w-4 h-4 text-red-500" /> Logout
-              </button>
+             <button
+  onClick={() => setLoggingOut(true)}
+  disabled={loggingOut}
+  className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 text-sm w-full disabled:opacity-50"
+>
+  <LogOut className="w-4 h-4 text-red-500" />
+  {loggingOut ? `Signing out${dots}` : "Sign out"}
+</button>
+
+
+
             </div>
           )}
         </>
@@ -411,9 +482,13 @@ const Navigation = () => {
 
       {/* ================= Edit Profile Modal ================= */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] animate-fade-in-smooth">
-          <Card className="w-full max-w-md bg-white shadow-2xl rounded-2xl animate-scale-in border border-gray-100">
-            <CardContent className="p-8 space-y-6">
+<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] px-3">
+
+<Card className="w-full max-w-md md:max-w-md max-h-[85vh] bg-white shadow-2xl rounded-2xl animate-scale-in border border-gray-100">
+
+
+         <CardContent className="p-4 md:p-8 space-y-4">
+
               <h3 className="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
                 Edit Profile
               </h3>
@@ -462,7 +537,7 @@ const Navigation = () => {
       fd.append("image", file);
       fd.append("email", userEmail);
 
-      const uploadRes = await fetch("http://localhost:5000/upload-profile-image", {
+      const uploadRes = await fetch("/api/upload-profile-image", {
         method: "POST",
         body: fd,
       });
@@ -488,7 +563,7 @@ const Navigation = () => {
   <button
     type="button"
     onClick={async () => {
-      const res = await fetch("http://localhost:5000/delete-profile-image", {
+      const res = await fetch("/api/delete-profile-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -510,7 +585,8 @@ const Navigation = () => {
         toast.error("Failed to delete image.");
       }
     }}
-    className="text-red-600 text-sm font-semibold underline"
+    className="text-red-600 text-sm font-semibold underline -mt-5"
+
   >
     Delete Photo
   </button>

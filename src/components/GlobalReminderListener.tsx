@@ -22,20 +22,12 @@ const GlobalReminderListener = () => {
         if (!r.triggered && r.time === current) {
           audioRef.current?.play().catch(() => {});
 
-          toast.custom(
-            <ReminderToast message={r.message} time={r.time} />,
-            {
-              duration: 3500,
-              position: "top-center",
-            }
-          );
+          
 
           r.triggered = true;
         }
 
-        if (r.triggered && r.time !== current) {
-          r.triggered = false;
-        }
+       
       });
 
       localStorage.setItem("reminders", JSON.stringify(reminders));

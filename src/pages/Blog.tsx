@@ -136,7 +136,8 @@ const Blog = () => {
             {filteredArticles.map((article, index) => (
               <Card
                 key={index}
-                className="card-hover animate-fade-in flex flex-col"
+                className="card-hover animate-fade-in flex flex-col bg-white
+    border-2 border-gray-300"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <CardContent className="p-6 flex flex-col flex-1 justify-between">

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,10 @@ const Auth = () => {
 
   // ✅ States
   const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(15);
+const [canResend, setCanResend] = useState(false);
+const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+const [rememberMe, setRememberMe] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -48,61 +53,155 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // ✅ Handle Signup
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      const response = await fetch("http://localhost:5000/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: signupFullName,
-          email: signupEmail,
-          password: signupPassword,
-        }),
-      });
-      const data = await response.json();
-      if (response.status === 409) {
-        toast({
-          title: "⚠️ User Already Exists",
-          description: "This email is already registered. Please log in instead.",
-          variant: "destructive",
-        });
-      } else if (response.ok) {
-        toast({
-          title: "🎉 Account Created!",
-          description: "Your account has been created. Please sign in to continue.",
-          className: "bg-emerald-500 text-white border-none shadow-lg",
-        });
-        setActiveTab("login");
-        setSignupEmail("");
-        setSignupPassword("");
-        setSignupFullName("");
-      } else {
-        toast({
-          title: "Signup Failed",
-          description: data.message || "Something went wrong.",
-          variant: "destructive",
-        });
-      }
-    } catch {
-      toast({
-        title: "🚨 Network Error",
-        description: "Cannot connect to the server.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+  // Disable scroll on auth page
+  document.body.style.overflow = "hidden";
 
-  // ✅ Handle Login
-  const handleLogin = async (e) => {
+  return () => {
+    // Re-enable scroll when leaving auth
+    document.body.style.overflow = "auto";
+  };
+}, []);
+  useEffect(() => {
+  const savedEmail = localStorage.getItem("remember_email");
+  if (savedEmail) {
+    setLoginEmail(savedEmail);
+    setRememberMe(true);
+  }
+}, []);
+
+useEffect(() => {
+  if (!showOTPInput) return;
+
+  setCanResend(false);
+  setResendTimer(15);
+
+  const interval = setInterval(() => {
+    setResendTimer((prev) => {
+      if (prev <= 1) {
+        clearInterval(interval);
+        setCanResend(true);
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [showOTPInput]);
+const handleResendOtp = async () => {
+  if (!canResend) return;
+
+  try {
+    await fetch("/api/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: resetEmail }),
+    });
+
+    toast({
+      title: "OTP Sent Again",
+      description: "A new OTP has been sent to your email.",
+      className: "bg-emerald-500 text-white border-none shadow-lg",
+    });
+
+    // 🔄 Reset timer
+    setCanResend(false);
+    setResendTimer(15);
+
+    const interval = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setCanResend(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+  } catch {
+    toast({
+      title: "Error",
+      description: "Failed to resend OTP.",
+      variant: "destructive",
+    });
+  }
+};
+
+const handleSignup = async (e) => {
   e.preventDefault();
   setIsLoading(true);
 
   try {
-    const response = await fetch("http://localhost:5000/login", {
+    const response = await fetch("/api/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        full_name: signupFullName,
+        email: signupEmail,
+        password: signupPassword,
+      }),
+    });
+
+    // 🔴 PEHLE response check
+    if (!response.ok) {
+      const text = await response.text();
+
+      if (response.status === 409) {
+       setTimeout(() => {
+         toast({
+          title: "User Already Exists",
+          description: "This email is already registered. Please log in instead.",
+          variant: "destructive",
+        });
+       }, 1200);
+        return;
+      }
+
+      throw new Error(text || "Signup failed");
+    }
+
+    // 🟢 AB JSON SAFE HAI
+    const data = await response.json();
+    if (rememberMe) {
+  localStorage.setItem("remember_email", loginEmail);
+} else {
+  localStorage.removeItem("remember_email");
+}
+
+
+    setTimeout(() => {
+      toast({
+      title: "Account Created!",
+      description: data.message || "Your account has been created. Please sign in to continue.",
+      className: "bg-emerald-500 text-white border-none shadow-lg",
+    });
+    setIsLoading(false);
+    setActiveTab("login");
+    setSignupEmail("");
+    setSignupPassword("");
+    setSignupFullName("");
+    }, 2000);
+
+
+  } catch (err) {
+    toast({
+      title: "Network Error",
+      description: "Cannot connect to the server.",
+      variant: "destructive",
+    });
+  } 
+};
+
+
+  // ✅ Handle Login
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+
+  try {
+    const response = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -111,56 +210,53 @@ const Auth = () => {
       }),
     });
 
+    if (!response.ok) {
+      const text = await response.text();
+
+      if (response.status === 404) {
+        setTimeout(() => {
+          setIsLoading(false);
+           toast({
+          title: "User Not Found",
+          description: "No account exists with this email. Please sign up first.",
+          variant: "destructive",
+        });
+        }, 1200);
+       
+           // ✅ IMPORTANT
+        return;
+      }
+
+      if (response.status === 401) {
+        setTimeout(()=>{
+          setIsLoading(false);
+          toast({
+          title: "Invalid Password",
+          description: "Your password is incorrect. Try again.",
+          variant: "destructive",
+        });
+        },1200)
+        
+           // ✅ IMPORTANT
+        return;
+      }
+
+      throw new Error(text || "Login failed");
+    }
+
     const data = await response.json();
 
-    if (response.status === 404) {
+    localStorage.setItem("userEmail", data.user.email);
+    localStorage.setItem("userName", data.user.full_name);
+    window.dispatchEvent(new Event("user-logged-in"));
+
+    // ⏳ HOLD Processing for 3 seconds
+    setTimeout(() => {
       setIsLoading(false);
-      toast({
-        title: "User Not Found",
-        description: "No account exists with this email. Please sign up first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (response.status === 401) {
-      setIsLoading(false);
-      toast({
-        title: "Invalid Password",
-        description: "Your password is incorrect. Try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (response.ok) {
-  localStorage.setItem("userEmail", data.user?.email || loginEmail);
-  localStorage.setItem("userName", data.user?.full_name || "");
-
-  // Delay for animation
-  setTimeout(() => {
-    navigate("/dashboard", {
-      state: {
-        email: data.user?.email || loginEmail,
-        justLoggedIn: true,   // 🔥 IMPORTANT FLAG
-      },
-    });
-  }, 2000);
-
-  return;
-}
-
-
-    // Unknown error
-    setIsLoading(false);
-    toast({
-      title: "Login Error",
-      description: data.message || "Unexpected error occurred.",
-      variant: "destructive",
-    });
+      navigate("/dashboard");
+    }, 3000);
 
   } catch (err) {
-    console.error("❌ Login Error:", err);
     setIsLoading(false);
     toast({
       title: "Server Error",
@@ -172,66 +268,72 @@ const Auth = () => {
 
 
 
+
   // ✅ Send OTP
 const handleSendOtp = async () => {
   if (!resetEmail) {
-    toast({
-      title: "⚠️ Enter your email",
+   setTimeout(() => {
+     toast({
+      title: "Enter your email",
       description: "Please enter your registered email to get a reset code.",
       variant: "destructive",
     });
+   }, 1200);
     return;
   }
 
   setIsOtpLoading(true);
 
   try {
-    const res = await fetch("http://localhost:5000/send-otp", {
+    const res = await fetch("/api/send-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: resetEmail }),
     });
 
-    const data = await res.json();
+    // 🔴 PEHLE response check
+    if (!res.ok) {
+      const text = await res.text();
 
-    if (res.status === 404) {
-      toast({
-        title: "🙁 User Not Found",
-        description: "No account exists with this email.",
-        variant: "destructive",
-      });
-    } else if (res.ok) {
-      
-      // ⭐ Delay to show animation properly
+      if (res.status === 404) {
       setTimeout(() => {
-        toast({
-          title: "📩 OTP Sent!",
-          description: "Check your inbox for your 6-digit reset code.",
-          className: "bg-emerald-500 text-white border-none shadow-lg",
+          toast({
+          title: "User Not Found",
+          description: "No account exists with this email.",
+          variant: "destructive",
         });
+      }, 1200);
+        return;
+      }
 
-        setShowOTPInput(true);
-      }, 1500); // ⭐ 1.5 second delay (same as Sign In)
-      
-    } else {
-      toast({
-        title: "❌ Failed to Send OTP",
-        description: data.message || "Something went wrong.",
-        variant: "destructive",
-      });
+      throw new Error(text || "Failed to send OTP");
     }
-  } catch {
+
+    // 🟢 AB JSON SAFE HAI
+    await res.json();
+
+    // ⭐ Delay to show animation properly
+    setTimeout(() => {
+      toast({
+        title: "OTP Sent!",
+        description: "Check your inbox for your 6-digit reset code.",
+        className: "bg-emerald-500 text-white border-none shadow-lg",
+      });
+
+      setShowOTPInput(true);
+    }, 2000);
+
+  } catch (err) {
     toast({
-      title: "🚨 Server Error",
+      title: "Server Error",
       description: "Cannot reach backend.",
       variant: "destructive",
     });
   } finally {
-
     // ⭐ Smooth loading ending
     setTimeout(() => {
       setIsOtpLoading(false);
-    }, 2000); // same delay
+    }, 2000);
   }
 };
 
@@ -239,118 +341,138 @@ const handleSendOtp = async () => {
 
   // ✅ Verify OTP
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) {
+  if (!otp || otp.length !== 6) {
       toast({
-        title: "⚠️ Invalid OTP",
-        description: "Please enter the 6-digit code sent to your email.",
-        variant: "destructive",
-      });
-      return;
+      title: "Invalid OTP",
+      description: "Please enter the 6-digit code sent to your email.",
+      variant: "destructive",
+    });
+    setIsLoading(false);
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const res = await fetch("/api/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: resetEmail, otp }),
+    });
+
+    // 🔴 PEHLE response check
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "OTP verification failed");
     }
 
-    setIsLoading(true);
-    try {
-      const res = await fetch("http://localhost:5000/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail, otp }),
-      });
-      const data = await res.json();
+    // 🟢 AB JSON SAFE HAI
+    await res.json();
 
-      if (res.ok) {
-        toast({
-          title: "✅ OTP Verified!",
-          description: "Enter your new password below.",
-          className: "bg-emerald-500 text-white border-none shadow-lg",
-        });
-        setShowResetPassword(true);
-      } else {
-        toast({
-          title: "❌ Verification Failed",
-          description: data.message || "Incorrect OTP.",
-          variant: "destructive",
-        });
-      }
-    } catch {
+    setTimeout(() => {
+      
       toast({
-        title: "🚨 Server Error",
-        description: "Cannot connect to backend.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      title: "OTP Verified!",
+      description: "Enter your new password.",
+      className: "bg-emerald-500 text-white border-none shadow-lg",
+    });
+    setIsLoading(false);
+
+    setShowResetPassword(true);
+    }, 3000);
+
+  } catch (err) {
+    setTimeout(() => {
+      toast({
+      title: "Verification Failed",
+      description: "Incorrect or expired OTP.",
+      variant: "destructive",
+    });
+    setIsLoading(false);
+    }, 1200);
+  } 
+};
+
 
   // ✅ Reset Password
-  const handleResetPassword = async () => {
-    if (!newPassword || !confirmPassword) {
+ const handleResetPassword = async () => {
+  if (!newPassword || !confirmPassword) {
+    toast({
+      title: "Missing Fields",
+      description: "Please fill both password fields.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    toast({
+      title: "Password Mismatch",
+      description: "Passwords do not match.",
+      variant: "destructive",
+    });
+    return; // ❌ no loading here
+  }
+
+  setIsLoading(true); // ✅ ONLY HERE
+
+  try {
+    const res = await fetch("/api/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: resetEmail, newPassword }),
+    });
+
+    if (!res.ok) throw new Error("Reset failed");
+
+    await res.json();
+
+    setTimeout(() => {
       toast({
-        title: "⚠️ Missing Fields",
-        description: "Please fill both password fields.",
-        variant: "destructive",
+        title: "Password Updated!",
+        description: "You can now sign in with your new password.",
+        className: "bg-emerald-500 text-white border-none shadow-lg",
       });
-      return;
-    }
 
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "❌ Password Mismatch",
-        description: "Passwords do not match.",
-        variant: "destructive",
-      });
-      return;
-    }
+      setIsLoading(false); // ✅ STOP loading HERE
 
-    setIsLoading(true);
-    try {
-      const res = await fetch("http://localhost:5000/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail, newPassword }),
-      });
-      const data = await res.json();
+      setFade("animate-fade-out");
+      
+        setShowForgotPassword(false);
+        setShowOTPInput(false);
+        setShowResetPassword(false);
+        setOtp("");
+        setResetEmail("");
+        setFade("animate-fade-in");
+      
+    }, 3000);
 
-      if (res.ok) {
-        toast({
-          title: "✅ Password Updated!",
-          description: "You can now sign in with your new password.",
-          className: "bg-emerald-500 text-white border-none shadow-lg",
-        });
+  } catch (err) {
+    toast({
+      title: "🚨 Server Error",
+      description: "Unable to reach backend.",
+      variant: "destructive",
+    });
+    setIsLoading(false); // ✅ STOP on error
+  }
+};
 
-        // Smooth transition to Sign In
-        setFade("animate-fade-out");
-        setTimeout(() => {
-          setShowForgotPassword(false);
-          setShowOTPInput(false);
-          setShowResetPassword(false);
-          setOtp("");
-          setResetEmail("");
-          setFade("animate-fade-in");
-        }, 400);
-      } else {
-        toast({
-          title: "❌ Reset Failed",
-          description: data.message || "Could not update password.",
-          variant: "destructive",
-        });
-      }
-    } catch {
-      toast({
-        title: "🚨 Server Error",
-        description: "Unable to reach backend.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // 🌟 RETURN (Animated)
   return (
-    <div className="min-h-screen flex items-start justify-center bg-[#cfcfcf] pt-24">
-      <Card className="w-[400px] rounded-2xl bg-white shadow-2xl border border-gray-100 p-6 transition-all duration-500 animate-fade-in">
-        <CardHeader className="bg-gradient-to-r from-blue-500 to-cyan-400 text-primary-foreground text-center py-6 rounded-xl mb-4 animate-slide-down">
+<div className="fixed inset-0 top-16 bg-[#cfcfcf] flex items-center justify-center px-4">
+
+
+  
+
+
+
+  <Card className="w-full max-w-[400px] max-h-full overflow-y-auto rounded-2xl bg-white shadow-2xl border border-gray-100 p-6">
+
+
+
+       <CardHeader className="bg-gradient-to-r from-blue-500 to-cyan-400 text-primary-foreground text-center py-4 rounded-xl mb-3 animate-slide-down">
+
           <CardTitle className="text-3xl font-bold">Welcome to Medisynn</CardTitle>
           <CardDescription className="text-white/90">
             Your AI-powered health companion
@@ -364,7 +486,8 @@ const handleSendOtp = async () => {
               onValueChange={setActiveTab}
               className="w-full animate-fade-in-up"
             >
-              <TabsList className="relative flex w-full justify-between bg-[#f1f3f5] rounded-full p-1 mb-6 overflow-hidden">
+             <TabsList className="relative flex w-full justify-between bg-[#f1f3f5] rounded-full p-1 mb-4 overflow-hidden">
+
                 <div
                   className="absolute top-1 left-1 h-[calc(100%-0.5rem)] w-[calc(50%-0.25rem)] bg-white rounded-full shadow transition-all duration-500 ease-in-out"
                   style={{
@@ -395,6 +518,7 @@ const handleSendOtp = async () => {
               </TabsList>
 
               {/* 🔹 Login */}
+              
               <TabsContent value="login" className="animate-fade-in-up">
                 <form onSubmit={handleLogin} className="space-y-4" autoComplete="on">
                   <Label>Email</Label>
@@ -408,30 +532,56 @@ const handleSendOtp = async () => {
                   />
 
                   <Label>Password</Label>
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    placeholder="Enter your password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                  />
 
-                  <div className="text-right">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFade("animate-fade-out");
-                        setTimeout(() => {
-                          setShowForgotPassword(true);
-                          setFade("animate-fade-in");
-                        }, 400);
-                      }}
-                      className="text-sm text-muted-foreground hover:text-primary transition-all"
-                    >
-                      Forgot your password?
-                    </button>
-                  </div>
+<div className="relative">
+  <Input
+    type={showPassword ? "text" : "password"}
+    name="password"
+    placeholder="Enter your password"
+    value={loginPassword}
+    onChange={(e) => setLoginPassword(e.target.value)}
+    required
+    className="pr-10"
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+    aria-label="Toggle password visibility"
+  >
+    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+  </button>
+</div>
+<div className="flex items-center justify-between mt-2">
+  {/* Remember Me */}
+  <label className="flex items-center gap-2 text-sm cursor-pointer">
+    <input
+      type="checkbox"
+      checked={rememberMe}
+      onChange={(e) => setRememberMe(e.target.checked)}
+      className="accent-blue-500 w-4 h-4"
+    />
+    Remember me
+  </label>
+
+  {/* Forgot Password */}
+  <button
+    type="button"
+    onClick={() => {
+      setFade("animate-fade-out");
+      setTimeout(() => {
+        setShowForgotPassword(true);
+        setFade("animate-fade-in");
+      }, 400);
+    }}
+className="text-sm text-muted-foreground hover:text-primary transition-all relative -top-[6.5px]"
+
+  >
+    Forgot your password?
+  </button>
+</div>
+
 
                   <button
   type="submit"
@@ -440,12 +590,10 @@ const handleSendOtp = async () => {
     ${isLoading ? "opacity-60 cursor-not-allowed" : "hover:scale-[1.02]"}`}
 >
   {isLoading ? (
-    <div className="flex items-center gap-2">
+    <span className="flex items-center">
+  Processing<span className="dots"></span>
+</span>
 
-      <span className="flex">
-        Processing<span className="dots"></span>
-      </span>
-    </div>
   ) : (
     "Sign In"
   )}
@@ -475,20 +623,41 @@ const handleSendOtp = async () => {
                     required
                   />
                   <Label>Password</Label>
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    required
-                  />
-                  <Button
-                    type="submit"
-                    className="w-full gradient-hero text-white hover:scale-[1.02] transition-all"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Creating Account..." : "Create Account"}
-                  </Button>
+                 <div className="relative">
+  <Input
+    type={showPassword ? "text" : "password"}
+    placeholder="Enter your password"
+    value={signupPassword}
+    onChange={(e) => setSignupPassword(e.target.value)}
+    required
+    className="pr-10"
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+  >
+    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+  </button>
+</div>
+
+                  <div className={isLoading ? "cursor-not-allowed" : ""}>
+  <Button
+    type="submit"
+    disabled={isLoading}
+    className="w-full gradient-hero text-white transition-all"
+  >
+    {isLoading ? (
+      <span className="flex items-center justify-center">
+        Creating<span className="create-dots"></span>
+      </span>
+    ) : (
+      "Create Account"
+    )}
+  </Button>
+</div>
+
                 </form>
               </TabsContent>
             </Tabs>
@@ -507,74 +676,159 @@ const handleSendOtp = async () => {
                     onChange={(e) => setResetEmail(e.target.value)}
                     required
                   />
-                 <button
-  onClick={handleSendOtp}
-  disabled={isOtpLoading}
-  className={`w-full gradient-hero text-white flex items-center justify-center py-3 rounded-lg transition-all
-    ${isOtpLoading ? "opacity-60 cursor-not-allowed" : "hover:scale-[1.02]"}`}
->
-  {isOtpLoading ? (
-    <span className="flex items-center">
-      <span>Sending</span><span className="dots"></span>
-    </span>
-  ) : (
-    "Send Reset Code"
-  )}
-</button>
+                 <div style={{ marginTop: "18px" }}>
+  <button
+    onClick={handleSendOtp}
+    disabled={isOtpLoading}
+    className={`w-full gradient-hero text-white flex items-center justify-center py-3 rounded-lg transition-all
+      ${isOtpLoading ? "opacity-60 cursor-not-allowed" : "hover:scale-[1.02]"}`}
+  >
+    {isOtpLoading ? (
+      <span className="flex items-center">
+        <span>Sending</span><span className="dots"></span>
+      </span>
+    ) : (
+      "Send Reset Code"
+    )}
+  </button>
+</div>
+
 
 
 
 
 
                 </div>
+                
               )}
+              
 
-              {showOTPInput && !showResetPassword && (
-                <div className="space-y-2">
-                  <Label>Enter OTP</Label>
-                  <Input
-                    type="text"
-                    placeholder="Enter 6-digit OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    maxLength={6}
-                    required
-                  />
-                  <Button
-                    className="w-full bg-green-500 text-white hover:bg-green-600"
-                    onClick={handleVerifyOtp}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Verifying..." : "Verify OTP"}
-                  </Button>
-                </div>
-              )}
+             {showOTPInput && !showResetPassword && (
+  <div className="space-y-2">
+    <Label>Enter OTP</Label>
+    <Input
+      type="text"
+      placeholder="Enter 6-digit OTP"
+      value={otp}
+      onChange={(e) => setOtp(e.target.value)}
+      maxLength={6}
+      required
+    />
+
+    {/* Verify OTP Button */}
+    <div
+      style={{ marginTop: "18px" }}
+      className={isLoading ? "cursor-not-allowed" : ""}
+    >
+      <Button
+        className={`w-full bg-green-500 text-white transition-all
+          ${isLoading ? "opacity-60 cursor-not-allowed" : "hover:bg-green-600"}`}
+        onClick={handleVerifyOtp}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <span className="flex items-center justify-center">
+            Verifying<span className="verify-dots"></span>
+          </span>
+        ) : (
+          "Verify OTP"
+        )}
+      </Button>
+    </div>
+
+    {/* 🔁 Resend OTP (ONLY when OTP screen is visible) */}
+    <div className="mt-3 text-center text-sm">
+      {!canResend ? (
+        <span className="text-muted-foreground">
+          Resend OTP in{" "}
+          <span className="font-semibold">{resendTimer}s</span>
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={handleResendOtp}
+  
+  className="
+    text-sm font-medium
+    bg-gradient-to-r from-blue-500 to-cyan-400
+    bg-clip-text text-transparent
+    hover:opacity-80
+    transition
+  "
+        >
+          Resend OTP
+        </button>
+      )}
+    </div>
+  </div>
+)}
+
 
               {showResetPassword && (
                 <>
                   <Label>New Password</Label>
-                  <Input
-                    type="password"
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
-                  <Label>Confirm Password</Label>
-                  <Input
-                    type="password"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                  <Button
-                    className="w-full gradient-hero text-white"
-                    onClick={handleResetPassword}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Updating..." : "Update Password"}
-                  </Button>
+
+<div className="relative">
+  <Input
+    type={showPassword ? "text" : "password"}
+    placeholder="Enter new password"
+    value={newPassword}
+    onChange={(e) => setNewPassword(e.target.value)}
+    required
+    className="pr-10"
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+  >
+    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+  </button>
+</div>
+
+                <Label>Confirm Password</Label>
+
+<div className="relative">
+  <Input
+    type={showConfirmPassword ? "text" : "password"}
+    placeholder="Confirm new password"
+    value={confirmPassword}
+    onChange={(e) => setConfirmPassword(e.target.value)}
+    required
+    className="pr-10"
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+  >
+    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+  </button>
+</div>
+
+
+                 <div
+  style={{ marginTop: "18px" }}
+  className={isLoading ? "cursor-not-allowed" : ""}
+>
+  <Button
+    type="button"          // ❌ submit MAT rakho
+    onClick={handleResetPassword}
+    disabled={isLoading}
+    className="w-full gradient-hero text-white transition-all"
+  >
+    {isLoading ? (
+      <span className="flex items-center justify-center">
+        Updating<span className="update-dots"></span>
+      </span>
+    ) : (
+      "Update Password"
+    )}
+  </Button>
+</div>
+
                 </>
               )}
 
@@ -602,6 +856,7 @@ const handleSendOtp = async () => {
         </CardContent>
       </Card>
     </div>
+    
   );
 };
 

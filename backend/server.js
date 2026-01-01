@@ -7,12 +7,20 @@ import Bytez from "bytez.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
+const api = express.Router();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.get("/", (req, res) => {
+  res.send("✅ Backend working fine");
+});
 
+
+console.log("🔥🔥🔥 SERVER.JS LOADED 🔥🔥🔥");
 
 // ======================= STATIC UPLOADS FOLDER =======================
 app.use("/uploads", express.static("uploads"));
@@ -43,8 +51,8 @@ db.connect((err) => {
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "medisynn560@gmail.com",
-    pass: "xkfz rnoo wzke uckn",
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   },
 });
 
@@ -77,7 +85,7 @@ function safeParse(value) {
 // =================================================================
 // LOGIN (untouched)
 // =================================================================
-app.post("/login", (req, res) => {
+api.post("/login", (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password)
@@ -106,7 +114,7 @@ app.post("/login", (req, res) => {
 // =================================================================
 // SIGNUP (untouched)
 // =================================================================
-app.post("/signup", async (req, res) => {
+api.post("/signup", async (req, res) => {
   const { full_name, email, password } = req.body;
 
   if (!full_name || !email || !password)
@@ -133,7 +141,7 @@ app.post("/signup", async (req, res) => {
 // =================================================================
 // SEND OTP (untouched)
 // =================================================================
-app.post("/send-otp", (req, res) => {
+api.post("/send-otp", (req, res) => {
   const { email } = req.body;
 
   if (!email) return res.status(400).json({ message: "Email required" });
@@ -154,10 +162,24 @@ app.post("/send-otp", (req, res) => {
 
 
     const htmlTemplate = `
-  <div style="background:#f4f4f7; padding:30px 0; font-family:Arial, sans-serif;">
-    <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; background:#ffffff; border-radius:14px; box-shadow:0 4px 14px rgba(0,0,0,0.08); border:1px solid #e8e8e8;">
+  <div style="background:#f4f4f7; padding:0 0 0 0; font-family:Arial, sans-serif;">
+<table align="center" width="100%" cellpadding="0" cellspacing="0"
+  style="
+    max-width:520px;
+    background:#ffffff;
+    border:1px solid #e8e8e8;
+    box-shadow:0 4px 14px rgba(0,0,0,0.08);
+    overflow:hidden;
+  ">
+
+
       <tr>
-        <td style="padding:30px 25px; text-align:center;">
+  <td style="
+  padding:30px 25px;
+  text-align:center;
+  border-radius:14px;
+">
+
 
           <!-- ICON -->
           <div style="font-size:40px; margin-bottom:10px;">🔐</div>
@@ -169,7 +191,7 @@ app.post("/send-otp", (req, res) => {
 
           <!-- MESSAGE -->
           <p style="font-size:15px; color:#555; margin:0 0 20px; line-height:1.6;">
-            Use the verification code below to complete your login.
+          The password reset request was made for your Medisynn account. Use the code below to continue.
           </p>
 
           <!-- OTP BOX -->
@@ -189,7 +211,7 @@ app.post("/send-otp", (req, res) => {
 
           <!-- Security Note -->
           <p style="font-size:14px; color:#666; margin-top:14px; line-height:1.7;">
-            This OTP is valid for <strong>10 minutes</strong>.<br/>
+
             <span style="color:#d9534f; font-weight:bold;">
               ⚠️ Do NOT share this OTP with anyone.
             </span>
@@ -211,7 +233,7 @@ app.post("/send-otp", (req, res) => {
 
 
 transporter.sendMail({
-  from: "Medisynn <medisynn560@gmail.com>",
+  from: "Medisynn <medisynn.care24@gmail.com>",
   to: email,
   subject: "Your OTP Code – Medisynn Verification",
   html: htmlTemplate,
@@ -225,7 +247,7 @@ transporter.sendMail({
 // =================================================================
 // VERIFY OTP (untouched)
 // =================================================================
-app.post("/verify-otp", (req, res) => {
+api.post("/verify-otp", (req, res) => {
   const { email, otp } = req.body;
 
   db.query("SELECT * FROM users WHERE email = ?", [email], (err, results) => {
@@ -253,7 +275,7 @@ app.post("/verify-otp", (req, res) => {
 // =================================================================
 // RESET PASSWORD (untouched)
 // =================================================================
-app.post("/reset-password", async (req, res) => {
+api.post("/reset-password", async (req, res) => {
   const { email, newPassword } = req.body;
 
   const hash = await bcrypt.hash(newPassword, 10);
@@ -275,7 +297,7 @@ app.post("/reset-password", async (req, res) => {
 // =================================================================
 // AI CHAT (untouched)
 // =================================================================
-app.post("/ai", async (req, res) => {
+api.post("/ai", async (req, res) => {
   try {
     const { prompt } = req.body;
 
@@ -294,7 +316,7 @@ app.post("/ai", async (req, res) => {
 // =================================================================
 // PROFILE FETCH (untouched)
 // =================================================================
-app.post("/profile", (req, res) => {
+api.post("/profile", (req, res) => {
   const { email } = req.body;
 
   db.query("SELECT full_name, email, profile_image FROM users WHERE email=?", [email], (err, results) => {
@@ -312,7 +334,7 @@ app.post("/profile", (req, res) => {
 // =================================================================
 // 🔥 NEW → UPLOAD PROFILE IMAGE (FormData)
 // =================================================================
-app.post("/upload-profile-image", upload.single("image"), (req, res) => {
+api.post("/upload-profile-image", upload.single("image"), (req, res) => {
   const { email } = req.body;
 
   if (!req.file) {
@@ -337,7 +359,7 @@ app.post("/upload-profile-image", upload.single("image"), (req, res) => {
 // =================================================================
 // 🔥 FIXED PROFILE UPDATE (JSON ONLY, NO MULTER)
 // =================================================================
-app.post("/update-profile", async (req, res) => {
+api.post("/update-profile", async (req, res) => {
     console.log("🟡 RAW BODY RECEIVED:", req.body);
 
   const { email, full_name, password, profile_image } = req.body;
@@ -375,7 +397,7 @@ app.post("/update-profile", async (req, res) => {
 // =================================================================
 // DELETE PROFILE IMAGE (fixed)
 // =================================================================
-app.post("/delete-profile-image", (req, res) => {
+api.post("/delete-profile-image", (req, res) => {
   const { email, filename } = req.body;
 
   if (!email || !filename)
@@ -397,7 +419,7 @@ app.post("/delete-profile-image", (req, res) => {
 // =================================================================
 // DASHBOARD GET (untouched)
 // =================================================================
-app.get("/dashboard/:email", (req, res) => {
+api.get("/dashboard/:email", (req, res) => {
   const { email } = req.params;
 
   db.query("SELECT * FROM user_data WHERE email = ?", [email], (err, results) => {
@@ -437,7 +459,7 @@ app.get("/dashboard/:email", (req, res) => {
 // =================================================================
 // DASHBOARD SAVE (untouched)
 // =================================================================
-app.put("/dashboard/:email", (req, res) => {
+api.put("/dashboard/:email", (req, res) => {
   const { email } = req.params;
 
   const payload = {
@@ -486,6 +508,7 @@ app.put("/dashboard/:email", (req, res) => {
 // =================================================================
 // START SERVER (untouched)
 // =================================================================
+app.use("/api", api);
 app.listen(5000, () =>
   console.log("🚀 Server running on http://localhost:5000")
 );

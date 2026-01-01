@@ -93,10 +93,11 @@ const Doctors = () => {
           )}
 
           {/* RESULTS */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 ">
             {nearbyDoctors.length > 0 ? (
               nearbyDoctors.map((doctor, index) => (
-                <Card key={index} className="card-hover animate-fade-in">
+                <Card key={index} className="card-hover animate-fade-in bg-white
+    border-2 border-gray-300">
                   <CardContent className="p-6">
                     <h3 className="font-semibold text-lg">
                       {doctor.tags?.name || "Unnamed Hospital"}

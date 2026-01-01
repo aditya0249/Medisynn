@@ -304,7 +304,13 @@ export default function MentalHealthAnimated() {
 
         <div className="flex gap-3 mt-4">
           <Button onClick={startBreathing}>Start</Button>
-          <Button variant="outline" onClick={stopBreathing}>Stop</Button>
+<Button
+  variant="outline"
+  onClick={stopBreathing}
+  className="relative overflow-hidden border-2 border-teal-400 text-teal-600 hover:bg-teal-400 hover:text-white"
+>
+  Stop
+</Button>
         </div>
       </div>
 
@@ -329,18 +335,18 @@ export default function MentalHealthAnimated() {
 
 
               {/* Guided Thoughts */}
-              <Card className="p-0 shadow-md animate-card-up rounded-2xl overflow-hidden bg-gradient-to-r from-[#2196f3] to-[#26d0ce]">
+              <Card className="p-0 shadow-md animate-card-up rounded-2xl overflow-hidden bg-gradient-to-r from-[#2196f3] to-[#26d0ce] ">
   <div className="px-6 py-4">
     <h2 className="text-white text-xl font-semibold">Guided Thoughts</h2>
   </div>
 
   <CardContent className="backdrop-blur-sm bg-white/70 px-6 py-6 rounded-b-2xl">
-    <div className="grid md:grid-cols-2 gap-6">
+    <div className="grid md:grid-cols-2 gap-6 ">
       {meditations.map((m, i) => (
         <button
           key={i}
           onClick={() => openThought(m.thought)}
-          className="text-left p-4 border rounded-lg hover:shadow bg-white transition-all"
+          className="text-left p-4 border rounded-lg hover:shadow bg-white transition-all "
         >
           <div className="flex items-center justify-between">
             <h4 className="font-medium">{m.title}</h4>

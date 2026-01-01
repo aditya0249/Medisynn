@@ -9,19 +9,19 @@ import heroImage from "@/assets/hero-health.jpg";
 const Index = () => {
   const testimonials = [
     {
-      name: "Sarah Johnson",
+      name: "Aditya",
       role: "Health Enthusiast",
       content: "Medisynn has transformed how I manage my health. The AI health checker is incredibly accurate!",
       rating: 5
     },
     {
-      name: "Michael Chen",
+      name: "Anshika",
       role: "Busy Professional",
       content: "Booking doctors has never been easier. I love the convenience and the mental health support features.",
       rating: 5
     },
     {
-      name: "Emily Rodriguez",
+      name: "Gaurav",
       role: "Wellness Coach",
       content: "The personalized health insights and wellness tips are game-changing. Highly recommended!",
       rating: 5

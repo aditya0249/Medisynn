@@ -141,3 +141,25 @@ body {
   padding-top: 80px; /* adjust depending on navbar height */
 }
 
+label {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+/* 📱 ANDROID – TOASTER BOTTOM CENTER FIX */
+@media (max-width: 640px) {
+  [data-radix-toast-viewport] {
+    position: fixed !important;
+    left: 50% !important;
+    bottom: 16px !important;
+    transform: translateX(-50%) !important;
+
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    padding: 0 16px !important;
+  }
+}
+

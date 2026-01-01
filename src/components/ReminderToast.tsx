@@ -1,5 +1,10 @@
 import React from "react";
 
+type ReminderToastProps = {
+  message: string;
+  time: string;
+  onClose: () => void; // ✅ ADD THIS
+};
 const ReminderToast = ({ message, time }: { message: string; time: string }) => {
   return (
     <div

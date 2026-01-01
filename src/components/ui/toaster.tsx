@@ -18,7 +18,10 @@ export function Toaster() {
           </Toast>
         );
       })}
-      <ToastViewport />
+<ToastViewport className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none sm:pointer-events-auto sm:right-4 sm:left-auto sm:translate-x-0" />
+
+
+
     </ToastProvider>
   );
 }

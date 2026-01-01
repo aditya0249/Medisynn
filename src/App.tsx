@@ -1,5 +1,6 @@
-import { Toaster } from "react-hot-toast";
+import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster as HotToaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -15,7 +16,6 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import Navigation from "./components/Navigation"; 
-import GlobalReminderListener from "@/components/GlobalReminderListener";
 
 const queryClient = new QueryClient();
 
@@ -23,12 +23,17 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
+      <HotToaster
+  position="top-center"/>
+
+
+      
       <Sonner />
       {/* GLOBAL TOASTER - sab pages par toast show karega */}
-      <Toaster position="top-center" />
-      <GlobalReminderListener />
+      
+    
       <BrowserRouter>
-        
+         
         {/* ✅ Navbar placed outside Routes so it stays visible on every page */}
         <Navigation />
 

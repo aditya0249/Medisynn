@@ -30,10 +30,12 @@ type HealthRecord = { id: number; date: string; condition: string; doctor: strin
 type WellnessTip = { id: number; title: string; description: string; icon?: string };
 type Reminder = { id: number; time: string; message: string; triggered?: boolean };
 
+
+
 // =============================
 // Backend Base URL
 // =============================
-const API_BASE = "http://localhost:5000/dashboard";
+const API_BASE = "/api/dashboard";
 
 // =============================
 // Toast Helpers (Custom Styles)
@@ -79,6 +81,8 @@ const showWarning = (msg: string) =>
 
 const Dashboard: React.FC = () => {
   const location = useLocation();
+    const reminderLock = useRef(false);
+
 
 useEffect(() => {
   if (location.state?.justLoggedIn) {
@@ -115,29 +119,39 @@ useEffect(() => {
   // Load user email + dashboard data
   // =============================
   useEffect(() => {
-    const emailFromState = location.state?.email;
-    const emailFromStorage = localStorage.getItem("userEmail");
-    const email = emailFromState || emailFromStorage;
+  const emailFromState = location.state?.email;
+  const emailFromStorage = localStorage.getItem("userEmail");
+  const email = emailFromState || emailFromStorage;
 
-    if (!email) return;
+  if (!email) return;
 
-    setUserEmail(email);
-    setIsEmailLoaded(true);
+  setUserEmail(email);
+  setIsEmailLoaded(true);
 
-    fetch(`http://localhost:5000/dashboard/${email}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setHeartRateHistory(data.heartRateHistory || []);
-        setStepsHistory(data.stepsHistory || []);
-        setBpHistory(data.bpHistory || []);
-        setHealthHistory(data.healthHistory || []);
-        setWellnessTips(data.wellnessTips || []);
-        setReminders(data.reminders || []);
+  fetch(`/api/dashboard/${email}`)
+    .then((res) => res.json())
+    .then((data) => {
+      // ---- other dashboard data ----
+      setHeartRateHistory(data.heartRateHistory || []);
+      setStepsHistory(data.stepsHistory || []);
+      setBpHistory(data.bpHistory || []);
+      setHealthHistory(data.healthHistory || []);
+      setWellnessTips(data.wellnessTips || []);
 
-        setIsDataLoaded(true);
-      })
-      .catch(() => showError("Failed to load data!"));
-  }, [location.key]);
+      // ---- 🔥 REMINDER FIX (MOST IMPORTANT) ----
+      const serverReminders = data.reminders || [];
+
+      // 1️⃣ React state
+      setReminders(serverReminders);
+
+      // 2️⃣ localStorage sync (GlobalReminderListener reads this)
+      localStorage.setItem("reminders", JSON.stringify(serverReminders));
+
+      setIsDataLoaded(true);
+    })
+    .catch(() => showError("Failed to load data!"));
+}, [location.key]);
+
 
   // =============================
   // Auto-save (SAFE)
@@ -194,41 +208,6 @@ useEffect(() => {
   // =============================
   // Reminder Notification Logic
   // =============================
-  const getCurrentHHMM = () => {
-    const now = new Date();
-    return `${now.getHours().toString().padStart(2, "0")}:${now
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const current = getCurrentHHMM();
-      setReminders((prev) =>
-        prev.map((r) => {
-          if (!r.triggered && r.time === current) {
-            audioRef.current?.play().catch(() => {});
-            toast.custom(
-  <ReminderToast message={r.message} time={r.time} />,
-  {
-    duration: 5000,
-    position: "top-center",
-  }
-);
-
-
-            return { ...r, triggered: true };
-          }
-          if (r.triggered && r.time !== current) return { ...r, triggered: false };
-          return r;
-        })
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
   // =============================
   // Add Handlers
   // =============================
@@ -307,8 +286,11 @@ showSuccess("Health record added!");
 };
 
   const addReminder = () => {
+    if (!reminderForm.time && !reminderForm.message)
+    return showError("Time and Message required!");
   if (!reminderForm.time || !reminderForm.message)
-    return showError("Time & Message required!");
+    return showError("Time or Message required!");
+
 
   const newReminder = { 
     id: Date.now(), 
@@ -328,6 +310,9 @@ showSuccess("Health record added!");
 
   showSuccess("Reminder added!");
 };
+  const DATA_ROW =
+    "flex justify-between items-center border border-gray-400 px-4 py-2 bg-white";
+
 
 
   // =============================
@@ -341,11 +326,23 @@ showSuccess("Health record added!");
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
 
           {/* ================= HEART RATE ================= */}
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-6 items-start">
+
 
             {/* HEART RATE */}
-            <Card className="bg-white rounded-xl border border-gray-300"
+          <Card
+  className="
+    bg-white
+    rounded-xl
+    border border-gray-400
+    shadow-lg
+    shadow-gray-300/60
+    flex flex-col
+  "
 >
+
+
+
 
               <CardHeader className="pt-3">
   <CardTitle className="flex items-center gap-3 text-[22px] font-semibold leading-none pl-2">
@@ -354,20 +351,35 @@ showSuccess("Health record added!");
   </CardTitle>
 </CardHeader>
 
-              <CardContent className="mt-3">
+              <CardContent className="mt-3 flex-1">
+
 
                 <Input
                   value={heartRate}
+               className="
+    w-full
+    rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0
+  "
+
+
                   onChange={(e) => setHeartRate(e.target.value.replace(/[^\d]/g, ""))}
                   placeholder="Enter BPM"
                 />
-                <Button className="w-full mt-2" onClick={addHeartRate}>
+                <Button className="w-full mt-4"  onClick={addHeartRate}>
                   Save
                 </Button>
 
                 <div className="mt-3 space-y-1">
                   {heartRateHistory.map((hr, i) => (
-                    <div key={i} className="border p-2 rounded flex justify-between">
+<div key={i} className={DATA_ROW}>
+
                       <span>{hr.value} BPM ({hr.date})</span>
                       <Button
                         size="sm"
@@ -386,7 +398,15 @@ showSuccess("Health record added!");
             </Card>
 
             {/* STEPS */}
-            <Card className="bg-white rounded-xl border border-gray-300"
+           <Card
+  className="
+    bg-white
+    rounded-xl
+    border border-gray-400
+    shadow-lg
+    shadow-gray-300/60
+    flex flex-col
+  "
 >
 
              <CardHeader className="pt-3">
@@ -396,20 +416,33 @@ showSuccess("Health record added!");
                   <TrendingUp className="w-5 h-5 text-blue-500" /> Steps
                 </CardTitle>
               </CardHeader>
-              <CardContent className="mt-3">
+             <CardContent className="mt-3 flex-1">
+
 
                 <Input
                   value={stepsToday}
+                  className="
+    w-full
+    rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0
+  "
                   onChange={(e) => setStepsToday(e.target.value.replace(/[^\d]/g, ""))}
                   placeholder="Enter Steps"
                 />
-                <Button className="w-full mt-2" onClick={addSteps}>
+                <Button className="w-full mt-4"  onClick={addSteps}>
                   Save
                 </Button>
 
                 <div className="mt-3 space-y-1">
                   {stepsHistory.map((s, i) => (
-                    <div key={i} className="border p-2 rounded flex justify-between">
+<div key={i} className={DATA_ROW}>
+
                       <span>{s.value} steps ({s.date})</span>
                       <Button
                         size="sm"
@@ -428,7 +461,15 @@ showSuccess("Health record added!");
             </Card>
 
             {/* BLOOD PRESSURE */}
-            <Card className="bg-white rounded-xl border border-gray-300"
+           <Card
+  className="
+    bg-white
+    rounded-xl
+    border border-gray-400
+    shadow-lg
+    shadow-gray-300/60
+    flex flex-col
+  "
 >
 
               <CardHeader className="pt-3">
@@ -438,20 +479,33 @@ showSuccess("Health record added!");
                   <Activity className="w-5 h-5 text-green-500" /> Blood Pressure
                 </CardTitle>
               </CardHeader>
-            <CardContent className="mt-3">
+            <CardContent className="mt-3 flex-1">
+
 
                 <Input
                   value={bloodPressure}
+                  className="
+    w-full
+    rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0
+  "
                   onChange={(e) => setBloodPressure(e.target.value)}
                   placeholder="Enter BP"
                 />
-                <Button className="w-full mt-2" onClick={addBP}>
+                <Button className="w-full mt-4" onClick={addBP}>
                   Save
                 </Button>
 
                 <div className="mt-3 space-y-1">
                   {bpHistory.map((bp, i) => (
-                    <div key={i} className="border p-2 rounded flex justify-between">
+<div key={i} className={DATA_ROW}>
+
                       <span>{bp.value} ({bp.date})</span>
                       <Button
                         size="sm"
@@ -472,15 +526,19 @@ showSuccess("Health record added!");
 
           {/* ================= TABS ================= */}
         <Tabs 
-  defaultValue="health" 
-  className="space-y-6 bg-[#f8fafc] p-6 rounded-2xl border border-gray-300"
+   value={activeTab} onValueChange={setActiveTab}
+  className="space-y-6 bg-[#f8fafc] p-6 rounded-2xl bg-white
+  rounded-xl
+  border border-gray-400
+  shadow-lg
+  shadow-gray-300/60"
 >
 
 
 
             {/* ---------- SLIDING TAB BUTTONS GROUP ---------- */}
 {/* Beautiful Gradient Tabs Like Mental Health Button */}
-<div className="relative w-full h-14 rounded-full bg-[#e5e7eb] p-1 flex items-center shadow-inner">
+<div className="relative w-full h-14 rounded-full bg-[#e5e7eb] p-1 flex items-center shadow-inner ">
 
   {/* Sliding Gradient Pill */}
   <div
@@ -514,35 +572,71 @@ showSuccess("Health record added!");
               <Label>Date</Label>
               <Input
                 type="date"
+              
                 value={healthForm.date}
+               className="block mb-4  rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0"
+
                 onChange={(e) => setHealthForm({ ...healthForm, date: e.target.value })}
               />
 
               <Label>Condition</Label>
               <Input
                 value={healthForm.condition}
+               className="block mb-4  rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0"
+
                 onChange={(e) => setHealthForm({ ...healthForm, condition: e.target.value })}
               />
 
               <Label>Doctor</Label>
               <Input
                 value={healthForm.doctor}
+                className="block mb-4  rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0"
                 onChange={(e) => setHealthForm({ ...healthForm, doctor: e.target.value })}
               />
 
               <Label>Notes</Label>
               <Textarea
                 value={healthForm.notes}
+                 className="block mb-4  rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0"
                 onChange={(e) => setHealthForm({ ...healthForm, notes: e.target.value })}
               />
 
-              <Button className="mt-3" onClick={addHealthRecord}>
+              <Button className="mt-7" onClick={addHealthRecord}>
                 Add Record
               </Button>
 
               <div className="mt-4 space-y-1">
                 {healthHistory.map((h) => (
-                  <div key={h.id} className="border p-2 rounded flex justify-between">
+<div key={h.id} className={DATA_ROW}>
+
                     <span>{h.date} — {h.condition} (Dr. {h.doctor})</span>
                     <Button
                       size="sm"
@@ -564,12 +658,28 @@ showSuccess("Health record added!");
               <Label>Title</Label>
               <Input
                 value={wellnessForm.title}
+                 className="block mb-4  rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0"
                 onChange={(e) => setWellnessForm({ ...wellnessForm, title: e.target.value })}
               />
 
               <Label>Description</Label>
               <Textarea
                 value={wellnessForm.description}
+                 className="block mb-4  rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0"
                 onChange={(e) => setWellnessForm({ ...wellnessForm, description: e.target.value })}
               />
 
@@ -579,7 +689,8 @@ showSuccess("Health record added!");
 
               <div className="mt-4 space-y-1">
                 {wellnessTips.map((w) => (
-                  <div key={w.id} className="border p-2 rounded flex justify-between">
+<div key={w.id} className={DATA_ROW}>
+
                     <span>{w.icon} {w.title} — {w.description}</span>
                     <Button
                       size="sm"
@@ -598,8 +709,14 @@ showSuccess("Health record added!");
           </Tabs>
 
           {/* ================= REMINDERS ================= */}
-         <Card className="bg-white rounded-xl border border-gray-300"
->
+         
+                 <Card className="
+  bg-white
+  rounded-xl
+  border border-gray-400
+  shadow-lg
+  shadow-gray-300/60
+">
 
             <CardHeader className="pt-3">
 
@@ -614,6 +731,14 @@ showSuccess("Health record added!");
               <Label>Message</Label>
               <Input
                 value={reminderForm.message}
+                className="block mb-4  rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0"
                 onChange={(e) =>
                   setReminderForm({ ...reminderForm, message: e.target.value })
                 }
@@ -623,6 +748,14 @@ showSuccess("Health record added!");
               <Input
                 type="time"
                 value={reminderForm.time}
+                 className="block mb-4  rounded-[14px]
+    bg-white
+    border-2 border-gray-300
+    px-2 py-4
+    outline-none
+    focus:border-blue-500
+    focus-visible:ring-0
+    focus-visible:ring-offset-0"
                 onChange={(e) =>
                   setReminderForm({ ...reminderForm, time: e.target.value })
                 }
@@ -634,18 +767,38 @@ showSuccess("Health record added!");
 
               <div className="mt-4 space-y-1">
                 {reminders.map((r) => (
-                  <div key={r.id} className="border p-2 rounded flex justify-between">
+<div
+  key={r.id}
+  className="
+    flex justify-between items-center
+
+    border border-gray-400
+    bg-white
+    px-4 py-3
+    shadow-sm
+  "
+>
+
                     <span>{r.time} — {r.message}</span>
                     <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => {
-                        setReminders((prev) => prev.filter((x) => x.id !== r.id));
-                        showWarning("Reminder removed!");
-                      }}
-                    >
-                      Remove
-                    </Button>
+  size="sm"
+  variant="destructive"
+  onClick={() => {
+    // 1️⃣ React state se delete (UI)
+    setReminders((prev) => prev.filter((x) => x.id !== r.id));
+
+    // 2️⃣ localStorage se bhi delete (🔥 REAL FIX)
+    const stored = JSON.parse(localStorage.getItem("reminders") || "[]");
+    const updated = stored.filter((x: any) => x.id !== r.id);
+    localStorage.setItem("reminders", JSON.stringify(updated));
+
+    // 3️⃣ Toast
+    showWarning("Reminder removed!");
+  }}
+>
+  Remove
+</Button>
+
                   </div>
                 ))}
               </div>
@@ -655,6 +808,22 @@ showSuccess("Health record added!");
       </main>
 
       <Footer />
+      <Toaster
+  position="top-center"
+  containerStyle={{
+    top: 16,
+    left: "50%",
+    transform: "translateX(-50%)",
+  }}
+  toastOptions={{
+    style: {
+      maxWidth: "90vw",
+      textAlign: "center",
+    },
+  }}
+/>
+
+
       <audio ref={audioRef} src="/notification.mp3" preload="auto" />
     </div>
   );

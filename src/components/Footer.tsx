@@ -54,7 +54,7 @@ const Footer = () => {
         to="/health-checker"
         className="text-muted-foreground hover:text-primary transition-smooth"
       >
-        AI Health Check
+        Health Check
       </Link>
     </li>
 
@@ -129,7 +129,7 @@ const Footer = () => {
               <ul className="space-y-3 text-sm">
                 <li className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="w-4 h-4 text-primary" />
-                  medisynn560@gmail.com
+                  medisynn.care24@gmail.com
                 </li>
                 <li className="flex items-center gap-2 text-muted-foreground">
                   <Phone className="w-4 h-4 text-primary" />
